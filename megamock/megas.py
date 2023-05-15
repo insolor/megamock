@@ -1,4 +1,4 @@
-from typing import Callable, Sequence, cast
+from typing import Callable, List, Optional, Sequence, cast
 
 from megamock.megamocks import MegaMock, UseRealLogic
 from megamock.type_util import Call
@@ -17,7 +17,7 @@ class Mega:
         assert Mega(mock.my_method).called_with(1, 2, 3)
     """
 
-    last_assertion_error: AssertionError | None = None
+    last_assertion_error: Optional[AssertionError] = None
 
     def __init__(self, func: Callable) -> None:
         self._func = func
@@ -106,7 +106,7 @@ class Mega:
         return self._mm.call_args
 
     @property
-    def call_args_list(self) -> list[Call]:
+    def call_args_list(self) -> List[Call]:
         """
         Return the list of all calls made to the mock
         """

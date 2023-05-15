@@ -6,7 +6,7 @@ import re
 import sys
 import time
 from types import FrameType, ModuleType
-from typing import Callable
+from typing import Callable, List, Tuple
 
 from megamock.import_references import References
 
@@ -81,7 +81,7 @@ def findsource(object):
     return lines
 
 
-def _get_code_lines(frame: FrameType) -> tuple[list[str], int]:
+def _get_code_lines(frame: FrameType) -> Tuple[List[str], int]:
     """
     Streamlined logic to get code lines from a frame
     """

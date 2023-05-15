@@ -6,7 +6,19 @@ import logging
 import sys
 from functools import cached_property
 from types import ModuleType
-from typing import Any, Callable, Generic, Iterable, TypeVar, cast
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+)
 from unittest import mock
 
 from varname import argname  # type: ignore
@@ -50,22 +62,22 @@ class MegaPatchBehavior:
 
 class MegaPatch(Generic[T, U]):
     __reserved_names = {"_patches", "_thing", "_path", "_mocked_value", "_return_value"}
-    _active_patches: set[MegaPatch] = set()
+    _active_patches: Set[MegaPatch] = set()
 
-    default_mocker: ModuleType | object = mock
+    default_mocker: Union[ModuleType, object] = mock
 
     def __init__(
         self,
         *,
         thing: Any,
-        patches: list[mock._patch],
-        new_value: MegaMock | Any,
+        patches: List[mock._patch],
+        new_value: Union[MegaMock, Any],
         return_value: Any,
-        mocker: ModuleType | object
-        # _merged_type: type[U] | None = None,
+        mocker: Union[ModuleType, object]
+        # _merged_type: Optional[type[U]] = None,
     ) -> None:
         self._patches = patches
-        self._thing: Any | None = thing
+        self._thing: Optional[Any] = thing
         self._new_value: MegaMock = new_value
         self._return_value = return_value
         self._mocker = mocker
@@ -73,7 +85,7 @@ class MegaPatch(Generic[T, U]):
         self._started = False
 
     @property
-    def patches(self) -> list[mock._patch]:
+    def patches(self) -> List[mock._patch]:
         return list(self._patches)
 
     @property
@@ -81,7 +93,7 @@ class MegaPatch(Generic[T, U]):
         return self._thing
 
     @property
-    def new_value(self) -> MegaMock[T, U] | Any:
+    def new_value(self) -> Union[MegaMock[T, U], Any]:
         return self._new_value
 
     def new_value_is_mock(self) -> bool:
@@ -189,7 +201,7 @@ class MegaPatch(Generic[T, U]):
         return wrapper
 
     @staticmethod
-    def active_patches() -> list[MegaPatch]:
+    def active_patches() -> List[MegaPatch]:
         return list(MegaPatch._active_patches)
 
     @staticmethod
@@ -203,8 +215,8 @@ class MegaPatch(Generic[T, U]):
         thing: Any,
         spec_set: bool,
         return_value: Any,
-        side_effect: Iterable | Exception | None,
-    ) -> tuple[Any, Any]:
+        side_effect: Union[Iterable, Exception, None],
+    ) -> Tuple[Any, Any]:
         if behavior.autospec:
             autospeced = mock.create_autospec(thing, spec_set=spec_set)
             if inspect.isfunction(autospeced):
@@ -227,12 +239,12 @@ class MegaPatch(Generic[T, U]):
     def it(
         thing: T,
         /,
-        new: Any | None = None,
+        new: Optional[Any] = None,
         spec_set: bool = True,
-        behavior: MegaPatchBehavior | None = None,
+        behavior: Optional[MegaPatchBehavior] = None,
         autostart: bool = True,
-        mocker: ModuleType | object | None = None,
-        new_callable: Callable | None = None,
+        mocker: Union[ModuleType, object, None] = None,
+        new_callable: Optional[Callable] = None,
         **kwargs: Any,
     ):
         """
@@ -299,7 +311,7 @@ class MegaPatch(Generic[T, U]):
             mocker, module_path, name_to_patch, corrected_passed_in_name, new, kwargs
         )
 
-        mega_patch = MegaPatch[T, type[MegaMock | T]](
+        mega_patch = MegaPatch[T, type[Union[MegaMock, T]]](
             thing=thing,
             patches=patches,
             new_value=new,
@@ -323,7 +335,7 @@ class MegaPatch(Generic[T, U]):
 
     @staticmethod
     def _maybe_assign_link(
-        parent_mock: _MegaMockMixin | None, passed_in_name: str, mega_patch: MegaPatch
+        parent_mock: Optional[_MegaMockMixin], passed_in_name: str, mega_patch: MegaPatch
     ) -> None:
         if parent_mock is not None:
             assert passed_in_name
@@ -342,7 +354,7 @@ class MegaPatch(Generic[T, U]):
         new_given: Any,
         kwargs: dict,
         behavior: MegaPatchBehavior,
-    ) -> tuple[Any, Any]:
+    ) -> Tuple[Any, Any]:
         provided_return_value = kwargs.pop("return_value", _MISSING)
         side_effect = kwargs.pop("side_effect", None)
 
@@ -389,7 +401,7 @@ class MegaPatch(Generic[T, U]):
     @staticmethod
     def _determine_module_path_and_name(
         thing: Any, passed_in_name: str, corrected_passed_in_name: str
-    ) -> tuple[str, str]:
+    ) -> Tuple[str, str]:
         if not (module_path := getattr(thing, "__module__", None)):
             owning_class = MegaPatch._get_owning_class(passed_in_name)
             if owning_class:
@@ -409,7 +421,7 @@ class MegaPatch(Generic[T, U]):
         corrected_passed_in_name: str,
         new: Any,
         kwargs: dict,
-    ) -> list[mock._patch]:  # type: ignore  # mypy bug?
+    ) -> List[mock._patch]:  # type: ignore  # mypy bug?
         patches = []
         for path, named_as in (
             References.get_references(module_path, corrected_passed_in_name)
@@ -430,7 +442,7 @@ class MegaPatch(Generic[T, U]):
         return module.__name__
 
     @staticmethod
-    def _get_owning_class(name: str) -> str | None:
+    def _get_owning_class(name: str) -> Optional[str]:
         if "." not in name:
             return None
         owning_class_name, attr_name = name.rsplit(".", 1)

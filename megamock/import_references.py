@@ -1,6 +1,6 @@
 from collections import defaultdict
 from types import ModuleType
-from typing import NamedTuple
+from typing import Dict, NamedTuple, Set
 
 ModAndName = NamedTuple("ModAndName", [("module", str), ("name", str)])
 
@@ -13,14 +13,14 @@ class References:
 
     # References from a calling module and the name used to the
     # source module and the original name
-    references: dict[str, dict[str, ModAndName]] = defaultdict(dict)
+    references: Dict[str, Dict[str, ModAndName]] = defaultdict(dict)
     # reverse references from the source module and the original,
     # non-nested name, to the calling module and the name used
-    reverse_references: dict[str, dict[str, set[ModAndName]]] = defaultdict(
+    reverse_references: Dict[str, Dict[str, Set[ModAndName]]] = defaultdict(
         lambda: defaultdict(set)
     )
     # renames from the calling module and the name used to the original name
-    renames: dict[ModAndName, str] = {}
+    renames: Dict[ModAndName, str] = {}
 
     @staticmethod
     def add_reference(
@@ -44,7 +44,7 @@ class References:
             ] = original_name
 
     @staticmethod
-    def get_references(module_name: str, named_as: str) -> set[ModAndName]:
+    def get_references(module_name: str, named_as: str) -> Set[ModAndName]:
         """
         Given an importing module and name used, return the source module and name
 
@@ -56,7 +56,7 @@ class References:
         return {val}
 
     @staticmethod
-    def get_reverse_references(module_name: str, original_name: str) -> set[ModAndName]:
+    def get_reverse_references(module_name: str, original_name: str) -> Set[ModAndName]:
         """
         Given a source module and original name, return the imports to it.
         This includes logic to handle the nesting of the original name. For example,

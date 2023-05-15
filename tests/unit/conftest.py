@@ -1,7 +1,10 @@
-class SomeClass:
-    a: str | None
+from typing import Optional
 
-    def __init__(self, a: str | None) -> None:
+
+class SomeClass:
+    a: Optional[str]
+
+    def __init__(self, a: Optional[str]) -> None:
         self.a = a
 
     def b(self) -> str:

@@ -12,9 +12,13 @@ from inspect import isawaitable, isclass, iscoroutinefunction
 from typing import (
     Any,
     Callable,
+    Dict,
     Generic,
+    List,
     Literal,
+    Optional,
     TypeVar,
+    Union,
     cast,
     get_type_hints,
     overload,
@@ -48,10 +52,10 @@ UseRealLogic = _UseRealLogic()
 
 
 class AttributeTrackingBase(metaclass=ABCMeta):
-    stacktrace: list[traceback.FrameSummary]
+    stacktrace: List[traceback.FrameSummary]
 
     @property
-    def top_of_stacktrace(self) -> list[str]:
+    def top_of_stacktrace(self) -> List[str]:
         """
         Convenience property for quickly viewing the stacktrace in an IDE debugger.
 
@@ -69,7 +73,7 @@ class AttributeTrackingBase(metaclass=ABCMeta):
                 ret.append(x)
         return ret
 
-    def format_stacktrace(self, max_depth=100) -> list[str]:
+    def format_stacktrace(self, max_depth=100) -> List[str]:
         # for lists, the first frame is the most recent
         return traceback.format_list(self.stacktrace[:max_depth])
 
@@ -80,7 +84,7 @@ class AttributeTrackingBase(metaclass=ABCMeta):
 
 class AttributeAssignment(AttributeTrackingBase):
     def __init__(
-        self, attr_name: str, attr_value: Any, stacktrace: list[traceback.FrameSummary]
+        self, attr_name: str, attr_value: Any, stacktrace: List[traceback.FrameSummary]
     ) -> None:
         self.attr_name = attr_name
         self.attr_value = attr_value
@@ -97,7 +101,7 @@ class AttributeAssignment(AttributeTrackingBase):
 
 class SpyAccess(AttributeTrackingBase):
     def __init__(
-        self, attr_name: str, attr_value: Any, stacktrace: list[traceback.FrameSummary]
+        self, attr_name: str, attr_value: Any, stacktrace: List[traceback.FrameSummary]
     ) -> None:
         self.attr_name = attr_name
         self.attr_value = copy.copy(
@@ -114,30 +118,30 @@ class SpyAccess(AttributeTrackingBase):
         return SpyAccess(attr_name, attr_value, stacktrace)
 
 
-_base_mock_types = (
-    mock.Mock
-    | mock.MagicMock
-    | mock.NonCallableMock
-    | mock.NonCallableMagicMock
-    | mock.AsyncMock
-)
+_base_mock_types = Union[
+    mock.Mock,
+    mock.MagicMock,
+    mock.NonCallableMock,
+    mock.NonCallableMagicMock,
+    mock.AsyncMock,
+]
 
 
 @dataclass
 class MegaMockAttributes:
-    parent: _MegaMockMixin | None = None
-    spec: Any | None = None
-    wraps: Any | None = None
-    spy: Any | None = None
-    attr_assignments: dict[str, list[AttributeAssignment]] = field(
+    parent: Optional[_MegaMockMixin] = None
+    spec: Optional[Any] = None
+    wraps: Optional[Any] = None
+    spy: Optional[Any] = None
+    attr_assignments: Dict[str, List[AttributeAssignment]] = field(
         default_factory=lambda: defaultdict(list)
     )
-    spied_access: dict[str, list[SpyAccess]] = field(
+    spied_access: Dict[str, List[SpyAccess]] = field(
         default_factory=lambda: defaultdict(list)
     )
-    name: str | None = None
+    name: Optional[str] = None
 
-    _wrapped_mock: _base_mock_types | None = None
+    _wrapped_mock: Optional[_base_mock_types] = None
 
 
 class _MegaMockMixin(Generic[T, U]):
@@ -161,31 +165,31 @@ class _MegaMockMixin(Generic[T, U]):
 
     meganame: str  # a human friendly name, "<ADJECTIVE> <VERB> <INTEGER>"
     megamock: MegaMockAttributes = None  # type: ignore
-    _wrapped_legacy_mock: _base_mock_types | None
-    _mock_return_value_cache: Any | MISSING_TYPE = None
+    _wrapped_legacy_mock: Optional[_base_mock_types]
+    _mock_return_value_cache: Union[Any, MISSING_TYPE] = None
     # link call behavior to this mock
-    _linked_mock: MegaMock[T, U] | None = None
+    _linked_mock: Optional[MegaMock[T, U]] = None
 
     def __init__(
         self,
-        spec: T | type[T] | None = None,
+        spec: Union[T, type[T], None] = None,
         *,
-        wraps: T | None = None,
-        spy: T | None = None,
+        wraps: Optional[T] = None,
+        spy: Optional[T] = None,
         spec_set: bool = True,
-        instance: bool | None = None,
+        instance: Optional[bool] = None,
         side_effect: Any = None,
         return_value: Any = MISSING,
-        _wraps_mock: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-            | None
-        ) = None,
-        _parent_mega_mock: _MegaMockMixin | None = None,
-        _name: str | None = None,
-        _merged_type: type[U] | None = None,
+        _wraps_mock: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+            None,
+        ] = None,
+        _parent_mega_mock: Optional[_MegaMockMixin] = None,
+        _name: Optional[str] = None,
+        _merged_type: Optional[type[U]] = None,
         # warning: kwargs to MagicMock may not work correctly! Use at your own risk!
         **kwargs,
     ) -> None:
@@ -264,8 +268,8 @@ class _MegaMockMixin(Generic[T, U]):
     def _generate_mock_name(
         self,
         spec: Any,
-        parent_mega_mock: _MegaMockMixin | None,
-        name: str | None,
+        parent_mega_mock: Optional[_MegaMockMixin],
+        name: Optional[str],
     ) -> str:
         mock_name = ""
         if spec is None:
@@ -318,7 +322,7 @@ class _MegaMockMixin(Generic[T, U]):
             if (val := self._mock_return_value_cache) is MISSING:
                 if isinstance(
                     self._mock_return_value_,
-                    mock.NonCallableMagicMock | mock.NonCallableMock,
+                    (mock.NonCallableMagicMock, mock.NonCallableMock),
                 ):
                     val = self._mock_return_value_cache = MegaMock.from_legacy_mock(
                         self._mock_return_value_,
@@ -351,7 +355,7 @@ class _MegaMockMixin(Generic[T, U]):
         if (wrapped := self._wrapped_legacy_mock) is not None:
             result = getattr(wrapped, key)
             if not isinstance(result, _MegaMockMixin) and isinstance(
-                result, mock.NonCallableMock | mock.NonCallableMagicMock
+                result, (mock.NonCallableMock, mock.NonCallableMagicMock)
             ):
                 mega_result = MegaMock.from_legacy_mock(
                     result,
@@ -407,7 +411,7 @@ class _MegaMockMixin(Generic[T, U]):
     def _set_attr_annotations_check(self, key: str, value: Any) -> None:
         # do not check type if assigning a mock object
         # note that MegaMock is a subclass of NonCallableMagicMock
-        if not isinstance(value, mock.NonCallableMock | mock.NonCallableMagicMock):
+        if not isinstance(value, (mock.NonCallableMock, mock.NonCallableMagicMock)):
             allowed_values = get_type_hints(self.megamock.spec)[key]
 
             def raise_type_error() -> None:
@@ -417,7 +421,7 @@ class _MegaMockMixin(Generic[T, U]):
                 raise_type_error()
 
     def _get_spec_from_parents(
-        self, _parent_stack: list[_MegaMockMixin] | None = None
+        self, _parent_stack: Optional[List[_MegaMockMixin]] = None
     ) -> Any:
         """
         The built-in generate autospec function creates a few issues because
@@ -532,14 +536,14 @@ class MegaMock(_MegaMockMixin[T, U], mock.MagicMock, Generic[T, U]):
         wraps: None = None,
         spy: None = None,
         spec_set: bool = True,
-        _wraps_mock: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-            | None
-        ) = None,
-        _parent_mega_mock: _MegaMockMixin | None = None,
+        _wraps_mock: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+            None,
+        ] = None,
+        _parent_mega_mock: Optional[_MegaMockMixin] = None,
         _merged_type: type[U],
     ) -> None:
         ...
@@ -550,20 +554,20 @@ class MegaMock(_MegaMockMixin[T, U], mock.MagicMock, Generic[T, U]):
         self: _MegaMockMixin[T, U],
         *,
         spec: T,
-        _wraps_mock: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-            | None
-        ) = None,
-        instance: bool | None = None,
+        _wraps_mock: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+            None,
+        ] = None,
+        instance: Optional[bool] = None,
         side_effect: Any = None,
         return_value: Any = MISSING,
         wraps: Any = None,
         spy: Any = None,
         spec_set: bool = True,
-        _parent_mega_mock: _MegaMockMixin | None = None,
+        _parent_mega_mock: Optional[_MegaMockMixin] = None,
         _merged_type: type[U],
     ) -> None:
         ...
@@ -573,43 +577,43 @@ class MegaMock(_MegaMockMixin[T, U], mock.MagicMock, Generic[T, U]):
     def __init__(
         self: MegaMock[T, T],
         *,
-        _wraps_mock: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-            | None
-        ) = None,
-        wraps: T | None = None,
-        spy: T | None = None,
+        _wraps_mock: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+            None,
+        ] = None,
+        wraps: Optional[T] = None,
+        spy: Optional[T] = None,
         spec_set: bool = True,
-        instance: bool | None = None,
-        side_effect: T | None = None,
-        return_value: T | None = None,
-        _parent_mega_mock: _MegaMockMixin | None = None,
-        _merged_type: type[U] | None = None,
+        instance: Optional[bool] = None,
+        side_effect: Optional[T] = None,
+        return_value: Optional[T] = None,
+        _parent_mega_mock: Optional[_MegaMockMixin] = None,
+        _merged_type: Optional[type[U]] = None,
     ) -> None:
         ...
 
     def __init__(
         self,
         *,
-        spec: T | type[T] | None = None,
-        wraps: T | None = None,
-        spy: T | None = None,
+        spec: Union[T, type[T], None] = None,
+        wraps: Optional[T] = None,
+        spy: Optional[T] = None,
         spec_set: bool = True,
-        instance: bool | None = None,
+        instance: Optional[bool] = None,
         side_effect: Any = None,
         return_value: Any = MISSING,
-        _wraps_mock: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-            | None
-        ) = None,
-        _parent_mega_mock: _MegaMockMixin | None = None,
-        _merged_type: type[U] | None = None,
+        _wraps_mock: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+            None,
+        ] = None,
+        _parent_mega_mock: Optional[_MegaMockMixin] = None,
+        _merged_type: Optional[type[U]] = None,
         # warning: kwargs to MagicMock may not work correctly! Use at your own risk!
         **kwargs,
     ) -> None:
@@ -645,29 +649,29 @@ class MegaMock(_MegaMockMixin[T, U], mock.MagicMock, Generic[T, U]):
 
     @staticmethod
     def it(
-        spec: T | None = None,
+        spec: Optional[T] = None,
         *,
-        wraps: T | None = None,
-        spy: T | None = None,
+        wraps: Optional[T] = None,
+        spy: Optional[T] = None,
         spec_set: bool = True,
-        instance: bool | None = None,
+        instance: Optional[bool] = None,
         side_effect: Any = None,
         return_value: Any = MISSING,
-        _wraps_mock: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-            | None
-        ) = None,
-        _parent_mega_mock: _MegaMockMixin | None = None,
+        _wraps_mock: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+            None,
+        ] = None,
+        _parent_mega_mock: Optional[_MegaMockMixin] = None,
         # warning: kwargs to MagicMock may not work correctly! Use at your own risk!
         **kwargs,
     ):
         # hack to get static type inference to think this is a true union
         # of the two classes
-        def helper(obj) -> type[MegaMock[T, MegaMock | T] | T]:
-            return cast(type[MegaMock | T], lambda: obj)
+        def helper(obj) -> type[Union[MegaMock[T, Union[MegaMock, T]], T]]:
+            return cast(type[Union[MegaMock, T]], lambda: obj)
 
         return helper(
             MegaMock(
@@ -680,22 +684,22 @@ class MegaMock(_MegaMockMixin[T, U], mock.MagicMock, Generic[T, U]):
                 return_value=return_value,
                 _wraps_mock=_wraps_mock,
                 _parent_mega_mock=_parent_mega_mock,
-                _merged_type=type(MegaMock | spec.__class__),
+                _merged_type=type(Union[MegaMock, spec.__class__]),
                 **kwargs,
             ),
         )()
 
     @staticmethod
     def from_legacy_mock(
-        mock_obj: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-        ),
+        mock_obj: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+        ],
         spec: T,
         wraps: Any = None,
-        parent_megamock: MegaMock | _MegaMockMixin | None = None,
+        parent_megamock: Union[MegaMock, _MegaMockMixin, None] = None,
     ):
         if not isinstance(mock_obj, (mock.MagicMock, mock.Mock)):
             if isinstance(mock_obj, mock.AsyncMock):
@@ -742,7 +746,7 @@ class MegaMock(_MegaMockMixin[T, U], mock.MagicMock, Generic[T, U]):
             result = wrapped(*args, **kwargs)
             self._validate_spec_was_callable()
             if not isinstance(result, _MegaMockMixin) and isinstance(
-                result, mock.NonCallableMock | mock.NonCallableMagicMock
+                result, (mock.NonCallableMock, mock.NonCallableMagicMock)
             ):
                 call_spec = self._get_call_spec()
                 mega_result = MegaMock.from_legacy_mock(
@@ -803,28 +807,28 @@ class NonCallableMegaMock(
 ):
     @staticmethod
     def it(
-        spec: T | None = None,
+        spec: Optional[T] = None,
         *,
-        wraps: T | None = None,
-        spy: T | None = None,
+        wraps: Optional[T] = None,
+        spy: Optional[T] = None,
         spec_set: bool = True,
-        instance: bool | None = None,
+        instance: Optional[bool] = None,
         side_effect: Any = None,
         return_value: Any = MISSING,
-        _wraps_mock: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-            | None
-        ),
-        _parent_mega_mock: _MegaMockMixin | None = None,
+        _wraps_mock: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+            None,
+        ],
+        _parent_mega_mock: Optional[_MegaMockMixin] = None,
         **kwargs,
     ):
         # hack to get static type inference to think this is a true union
         # of the two classes
-        def helper(obj) -> type[NonCallableMegaMock[T, NonCallableMegaMock | T] | T]:
-            return cast(type[NonCallableMegaMock | T], lambda: obj)
+        def helper(obj) -> type[Union[NonCallableMegaMock[T, Union[NonCallableMegaMock, T]], T]]:
+            return cast(type[Union[NonCallableMegaMock, T]], lambda: obj)
 
         return helper(
             NonCallableMegaMock(
@@ -837,7 +841,7 @@ class NonCallableMegaMock(
                 return_value=return_value,
                 _wraps_mock=_wraps_mock,
                 _parent_mega_mock=_parent_mega_mock,
-                _merged_type=type(NonCallableMegaMock | spec.__class__),
+                _merged_type=type(Union[NonCallableMegaMock, spec.__class__]),
                 **kwargs,
             ),
         )()
@@ -852,28 +856,28 @@ class AsyncMegaMock(MegaMock[T, U], mock.AsyncMock, Generic[T, U]):
 
     @staticmethod
     def it(  # type: ignore
-        spec: T | None = None,
+        spec: Optional[T] = None,
         *,
-        wraps: T | None = None,
-        spy: T | None = None,
+        wraps: Optional[T] = None,
+        spy: Optional[T] = None,
         spec_set: bool = True,
-        instance: bool | None = None,
+        instance: Optional[bool] = None,
         side_effect: Any = None,
         return_value: Any = MISSING,
-        _wraps_mock: (
-            mock.Mock
-            | mock.MagicMock
-            | mock.NonCallableMock
-            | mock.NonCallableMagicMock
-            | None
-        ),
-        _parent_mega_mock: _MegaMockMixin | None = None,
+        _wraps_mock: Union[
+            mock.Mock,
+            mock.MagicMock,
+            mock.NonCallableMock,
+            mock.NonCallableMagicMock,
+            None,
+        ],
+        _parent_mega_mock: Optional[_MegaMockMixin] = None,
         **kwargs,
     ):
         # hack to get static type inference to think this is a true union
         # of the two classes
-        def helper(obj) -> type[AsyncMegaMock[T, AsyncMegaMock | T] | T]:
-            return cast(type[AsyncMegaMock | T], lambda: obj)
+        def helper(obj) -> type[Union[AsyncMegaMock[T, Union[AsyncMegaMock, T]], T]]:
+            return cast(type[Union[AsyncMegaMock, T]], lambda: obj)
 
         return helper(
             AsyncMegaMock(
@@ -886,7 +890,7 @@ class AsyncMegaMock(MegaMock[T, U], mock.AsyncMock, Generic[T, U]):
                 return_value=return_value,
                 _wraps_mock=_wraps_mock,
                 _parent_mega_mock=_parent_mega_mock,
-                _merged_type=type(AsyncMegaMock | spec.__class__),
+                _merged_type=type(Union[AsyncMegaMock, spec.__class__]),
                 **kwargs,
             ),
         )

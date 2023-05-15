@@ -220,7 +220,7 @@ class TestMegaMock:
             with pytest.raises(TypeError) as exc:
                 mock_instance.a = 12345  # type: ignore
 
-            assert str(exc.value) == "12345 is not an instance of str | None"
+            assert str(exc.value) == "12345 is not an instance of typing.Optional[str]"
 
         def test_spec_set_with_annotations_allows_mock_objects(self) -> None:
             mock_instance: SomeClass = MegaMock.it(SomeClass, spec_set=True)
